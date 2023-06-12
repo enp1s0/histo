@@ -37,15 +37,23 @@ void print_abs_histogram(
   // (                                   , max]
 
   std::vector<std::size_t> counter(num_buckets, 0);
-#pragma omp parallel for
-  for (std::size_t i = 0; i < len; i++) {
-    const auto v = detail::abs(ptr[i]);
-    auto index = static_cast<std::size_t>(num_buckets * ((v - min) / (max - min)));
-    if (index >= num_buckets) {
-      index = num_buckets - 1;
+#pragma omp parallel
+  {
+    std::vector<std::size_t> local_counter(num_buckets, 0);
+    for (std::size_t i = 0; i < len; i++) {
+      const auto v = detail::abs(ptr[i]);
+      auto index = static_cast<std::size_t>(num_buckets * ((v - min) / (max - min)));
+      if (index >= num_buckets) {
+        index = num_buckets - 1;
+      }
+      local_counter[index]++;
     }
-#pragma atomic
-    counter[index]++;
+    for (std::size_t i = 0; i < num_buckets; i++) {
+#pragma critical
+      {
+        counter[i] += local_counter[i];
+      }
+    }
   }
 
   for (std::size_t i = 0; i < num_buckets; i++) {
@@ -62,7 +70,7 @@ void print_abs_histogram(
       counter[i],
       static_cast<double>(counter[i]) / len
       );
-    for (std::size_t i = 0; i < num_buckets * static_cast<double>(counter[i]) / len; i++) {
+    for (std::size_t j = 0; j < num_buckets * static_cast<double>(counter[i]) / len; j++) {
       std::printf("*");
     }
     std::printf("\n");
