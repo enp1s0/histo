@@ -43,7 +43,7 @@ void print_abs_histogram(
     std::vector<std::size_t> local_counter(num_buckets, 0);
     for (std::size_t i = omp_get_thread_num(); i < len; i += omp_get_num_threads()) {
       const auto v = detail::abs(ptr[i]);
-      auto index = static_cast<std::size_t>(num_buckets * ((v - min) / (max - min)));
+      auto index = static_cast<std::size_t>(num_buckets * (v - min) / (max - min));
       if (index >= num_buckets) {
         index = num_buckets - 1;
       }
@@ -66,10 +66,10 @@ void print_abs_histogram(
       std::printf("(");
     }
     std::printf(
-      "%.5e, %.5e](%10lu; %e): ",
+      "%.5e, %.5e](%10lu; %e%%): ",
       range_min, range_max,
       counter[i],
-      static_cast<double>(counter[i]) / len
+      static_cast<double>(counter[i]) / len * 100
       );
     for (std::size_t j = 0; j < num_buckets * static_cast<double>(counter[i]) / len; j++) {
       std::printf("*");
