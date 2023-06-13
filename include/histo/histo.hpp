@@ -3,6 +3,7 @@
 #include <limits>
 #include <vector>
 #include <type_traits>
+#include <omp.h>
 
 namespace mtk {
 namespace histo {
@@ -37,10 +38,10 @@ void print_abs_histogram(
   // (                                   , max]
 
   std::vector<std::size_t> counter(num_buckets, 0);
-#pragma omp parallel
+#pragma omp parallel num_threads(16)
   {
     std::vector<std::size_t> local_counter(num_buckets, 0);
-    for (std::size_t i = 0; i < len; i++) {
+    for (std::size_t i = omp_get_thread_num(); i < len; i += omp_get_num_threads()) {
       const auto v = detail::abs(ptr[i]);
       auto index = static_cast<std::size_t>(num_buckets * ((v - min) / (max - min)));
       if (index >= num_buckets) {
@@ -49,7 +50,7 @@ void print_abs_histogram(
       local_counter[index]++;
     }
     for (std::size_t i = 0; i < num_buckets; i++) {
-#pragma critical
+#pragma omp critical
       {
         counter[i] += local_counter[i];
       }
