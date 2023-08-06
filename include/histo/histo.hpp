@@ -12,20 +12,20 @@ template <class T, std::enable_if_t<std::is_signed<T>::value, bool> = true>
 T abs(const T v) {return std::abs(v);}
 template <class T, std::enable_if_t<std::is_unsigned<T>::value, bool> = true>
 T abs(const T v) {return v;}
-} // namespace detail
 
-template <class T>
-void print_abs_histogram(
+template <class T, class Func>
+void print_histogram_core(
   const T* const ptr,
   const std::size_t len,
   const std::size_t num_buckets,
-  const std::size_t num_total_asterisks = 100
+  const std::size_t num_total_asterisks,
+	Func pre_process
   ) {
-  T max = 0, min = std::numeric_limits<T>::max();
+  T max = std::numeric_limits<T>::min(), min = std::numeric_limits<T>::max();
 
 #pragma omp parallel for reduction(max: max) reduction(min: min)
   for (std::size_t i = 0; i < len; i++) {
-    const auto v = detail::abs(ptr[i]);
+    const auto v = pre_process(ptr[i]);
     max = std::max(v, max);
     min = std::min(v, min);
   }
@@ -66,7 +66,7 @@ void print_abs_histogram(
       std::printf("(");
     }
     std::printf(
-      "%.5e, %.5e](%10lu; %e%%): ",
+      "%+.5e, %+.5e](%10lu; %e%%): ",
       range_min, range_max,
       counter[i],
       static_cast<double>(counter[i]) / len * 100
@@ -77,6 +77,24 @@ void print_abs_histogram(
     std::printf("\n");
   }
 }
+} // namespace detail
+
+
+template <class T>
+void print_abs_histogram(
+  const T* vec,
+	const std::size_t len,
+  const std::size_t num_buckets,
+  const std::size_t num_total_asterisks = 100
+  ) {
+  mtk::histo::detail::print_histogram_core(
+    vec,
+    len,
+    num_buckets,
+    num_total_asterisks,
+		[=](const T a) -> T {return detail::abs(a);}
+    );
+}
 
 template <class T>
 void print_abs_histogram(
@@ -85,6 +103,36 @@ void print_abs_histogram(
   const std::size_t num_total_asterisks = 100
   ) {
   mtk::histo::print_abs_histogram(
+    vec.data(),
+    vec.size(),
+    num_buckets,
+    num_total_asterisks
+    );
+}
+
+template <class T>
+void print_histogram(
+  const T* vec,
+	const std::size_t len,
+  const std::size_t num_buckets,
+  const std::size_t num_total_asterisks = 100
+  ) {
+  mtk::histo::detail::print_histogram_core(
+    vec,
+    len,
+    num_buckets,
+    num_total_asterisks,
+		[=](const T a) -> T {return a;}
+    );
+}
+
+template <class T>
+void print_histogram(
+  const std::vector<T> vec,
+  const std::size_t num_buckets,
+  const std::size_t num_total_asterisks = 100
+  ) {
+  mtk::histo::print_histogram(
     vec.data(),
     vec.size(),
     num_buckets,
