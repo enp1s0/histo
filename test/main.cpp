@@ -20,6 +20,9 @@ void histo_test(const std::size_t len) {
 	mtk::histo::print_histogram(vec, 10);
 	std::printf("Abs\n");
 	mtk::histo::print_abs_histogram(vec, 10);
+
+	const auto [mean, var] = mtk::histo::utils::calc_mean_and_var(vec.data(), vec.size());
+	std::printf("mean = %e, var = %e\n", mean, var);
 }
 
 int main() {
