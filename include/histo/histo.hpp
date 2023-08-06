@@ -140,5 +140,35 @@ void print_histogram(
     );
 }
 
+namespace utils {
+template <class T>
+std::pair<double, double> calc_mean_and_var(
+		const T* const ptr,
+		const std::size_t len
+		) {
+	double sum = 0;
+#pragma omp parallel for reduction(+: sum)
+	for (std::size_t i = 0; i < len; i++) {
+		sum += ptr[i];
+	}
+	const auto mean = sum / len;
+
+	sum = 0;
+#pragma omp parallel for reduction(+: sum)
+	for (std::size_t i = 0; i < len; i++) {
+		const auto v = mean - ptr[i];
+		sum += v * v;
+	}
+	const auto var = sum / (len - 1);
+
+	return std::make_pair(mean, var);
+}
+template <class T>
+std::pair<double, double> calc_mean_and_var(
+		const std::vector<T>& vec
+		) {
+	return calc_mean_and_var(vec.data(), vec.size());
+}
+} // namespace utils
 } // namespace histo
 } // namespace mtk
