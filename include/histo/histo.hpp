@@ -71,7 +71,7 @@ void print_histogram_core(
       counter[i],
       static_cast<double>(counter[i]) / len * 100
       );
-    for (std::size_t j = 0; j < num_buckets * static_cast<double>(counter[i]) / len; j++) {
+    for (std::size_t j = 0; j < num_total_asterisks * static_cast<double>(counter[i]) / len; j++) {
       std::printf("*");
     }
     std::printf("\n");
