@@ -42,7 +42,7 @@ void print_histogram_core(
   {
     std::vector<std::size_t> local_counter(num_buckets, 0);
     for (std::size_t i = omp_get_thread_num(); i < len; i += omp_get_num_threads()) {
-      const auto v = detail::abs(ptr[i]);
+      const auto v = pre_process(ptr[i]);
       auto index = static_cast<std::size_t>(num_buckets * (v - min) / (max - min));
       if (index >= num_buckets) {
         index = num_buckets - 1;
