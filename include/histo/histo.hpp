@@ -20,7 +20,7 @@ void print_histogram_core(
   const std::size_t len,
   const std::size_t num_buckets,
   const std::size_t num_total_asterisks,
-	Func pre_process
+  Func pre_process
   ) {
   T max = std::numeric_limits<T>::min(), min = std::numeric_limits<T>::max();
 
@@ -58,39 +58,39 @@ void print_histogram_core(
     }
   }
 
-	std::uint32_t count_width = 0;
-	for (std::size_t i = 0; i < num_buckets; i++) {
-		count_width = std::max(
-				count_width,
-				static_cast<std::uint32_t>(
-					std::floor(std::log10(counter[i])) + 1
-					)
-				);
-	}
+  std::uint32_t count_width = 0;
+  for (std::size_t i = 0; i < num_buckets; i++) {
+    count_width = std::max(
+        count_width,
+        static_cast<std::uint32_t>(
+          std::floor(std::log10(counter[i])) + 1
+          )
+        );
+  }
 
-	std::size_t acc = 0;
-	for (std::size_t i = 0; i < num_buckets; i++) {
-		const auto range_min = min + i       * static_cast<double>(max - min) / num_buckets;
-		const auto range_max = min + (i + 1) * static_cast<double>(max - min) / num_buckets;
-		if (i == 0) {
-			std::printf("[");
-		} else {
-			std::printf("(");
-		}
-		acc += counter[i];
-		std::printf(
-				"%+.5e, %+.5e](%*lu; %e%%; %6.2f%%): ",
-				range_min, range_max,
-				count_width,
-				counter[i],
-				static_cast<double>(counter[i]) / len * 100,
-				static_cast<double>(acc) / len * 100
-				);
-		for (std::size_t j = 0; j < num_total_asterisks * static_cast<double>(counter[i]) / len; j++) {
-			std::printf("*");
-		}
-		std::printf("\n");
-	}
+  std::size_t acc = 0;
+  for (std::size_t i = 0; i < num_buckets; i++) {
+    const auto range_min = min + i       * static_cast<double>(max - min) / num_buckets;
+    const auto range_max = min + (i + 1) * static_cast<double>(max - min) / num_buckets;
+    if (i == 0) {
+      std::printf("[");
+    } else {
+      std::printf("(");
+    }
+    acc += counter[i];
+    std::printf(
+        "%+.5e, %+.5e](%*lu; %e%%; %6.2f%%): ",
+        range_min, range_max,
+        count_width,
+        counter[i],
+        static_cast<double>(counter[i]) / len * 100,
+        static_cast<double>(acc) / len * 100
+        );
+    for (std::size_t j = 0; j < num_total_asterisks * static_cast<double>(counter[i]) / len; j++) {
+      std::printf("*");
+    }
+    std::printf("\n");
+  }
 }
 } // namespace detail
 
