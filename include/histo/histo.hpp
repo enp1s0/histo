@@ -16,19 +16,29 @@ T abs(const T v) {return v;}
 
 template <class T, class Func>
 void print_histogram_core(
-  const T* const ptr,
-  const std::size_t len,
-  const std::size_t num_buckets,
-  const std::size_t num_total_asterisks,
-  Func pre_process
-  ) {
+    const T* const ptr,
+    const std::size_t len,
+    const std::size_t num_buckets,
+    const std::size_t num_total_asterisks,
+    Func pre_process,
+    const double pre_min,
+    const double pre_max
+    ) {
   T max = std::numeric_limits<T>::min(), min = std::numeric_limits<T>::max();
 
+  if (std::isnan(pre_max) || std::isnan(pre_min)) {
 #pragma omp parallel for reduction(max: max) reduction(min: min)
-  for (std::size_t i = 0; i < len; i++) {
-    const auto v = pre_process(ptr[i]);
-    max = std::max(v, max);
-    min = std::min(v, min);
+    for (std::size_t i = 0; i < len; i++) {
+      const auto v = pre_process(ptr[i]);
+      max = std::max(v, max);
+      min = std::min(v, min);
+    }
+  }
+  if (!std::isnan(pre_min)) {
+    min = pre_min;
+  }
+  if (!std::isnan(pre_max)) {
+    max = pre_max;
   }
 
   // bucket_width = (max - min) / num_buckets
@@ -38,17 +48,23 @@ void print_histogram_core(
   // ...
   // (                                   , max]
 
+  std::size_t num_out = 0;
   std::vector<std::size_t> counter(num_buckets, 0);
-#pragma omp parallel num_threads(16)
+#pragma omp parallel reduction(+: num_out)
   {
     std::vector<std::size_t> local_counter(num_buckets, 0);
     for (std::size_t i = omp_get_thread_num(); i < len; i += omp_get_num_threads()) {
       const auto v = pre_process(ptr[i]);
-      auto index = static_cast<std::size_t>(num_buckets * (v - min) / (max - min));
-      if (index >= num_buckets) {
-        index = num_buckets - 1;
+
+      if (min <= v && v <= max) {
+        auto index = static_cast<std::size_t>(num_buckets * (v - min) / (max - min));
+        if (index >= num_buckets) {
+          index = num_buckets - 1;
+        }
+        local_counter[index]++;
+      } else {
+        num_out++;
       }
-      local_counter[index]++;
     }
     for (std::size_t i = 0; i < num_buckets; i++) {
 #pragma omp critical
@@ -63,8 +79,8 @@ void print_histogram_core(
     count_width = std::max(
         count_width,
         static_cast<std::uint32_t>(
-          std::floor(std::log10(counter[i])) + 1
-          )
+            std::floor(std::log10(counter[i])) + 1
+            )
         );
   }
 
@@ -91,98 +107,144 @@ void print_histogram_core(
     }
     std::printf("\n");
   }
+  std::printf("Out-of-range: %lu\n", num_out);
 }
 } // namespace detail
 
+enum class preprocess_t {
+  identity = 0,
+  abs = 1
+};
+
+struct params_t {
+  double range_min = std::nan("");
+  double range_max = std::nan("");
+  std::size_t num_buckets = 10;
+  std::size_t num_total_asterisks = 100;
+  preprocess_t preprocess = preprocess_t::identity;
+};
 
 template <class T>
 void print_abs_histogram(
-  const T* vec,
-	const std::size_t len,
-  const std::size_t num_buckets,
-  const std::size_t num_total_asterisks = 100
-  ) {
-  mtk::histo::detail::print_histogram_core(
-    vec,
-    len,
-    num_buckets,
-    num_total_asterisks,
-		[=](const T a) -> T {return detail::abs(a);}
-    );
+    const T* vec,
+    const std::size_t len,
+    const std::size_t num_buckets,
+    const std::size_t num_total_asterisks = 100
+    ) {
+  params_t params;
+  params.num_buckets = num_buckets;
+  params.num_total_asterisks = num_total_asterisks;
+  params.preprocess = preprocess_t::abs;
+  print_histogram(params, vec, len);
 }
 
 template <class T>
 void print_abs_histogram(
-  const std::vector<T> vec,
-  const std::size_t num_buckets,
-  const std::size_t num_total_asterisks = 100
-  ) {
+    const std::vector<T> vec,
+    const std::size_t num_buckets,
+    const std::size_t num_total_asterisks = 100
+    ) {
   mtk::histo::print_abs_histogram(
-    vec.data(),
-    vec.size(),
-    num_buckets,
-    num_total_asterisks
-    );
+      vec.data(),
+      vec.size(),
+      num_buckets,
+      num_total_asterisks
+      );
 }
 
 template <class T>
 void print_histogram(
-  const T* vec,
-	const std::size_t len,
-  const std::size_t num_buckets,
-  const std::size_t num_total_asterisks = 100
-  ) {
-  mtk::histo::detail::print_histogram_core(
-    vec,
-    len,
-    num_buckets,
-    num_total_asterisks,
-		[=](const T a) -> T {return a;}
-    );
+    const T* vec,
+    const std::size_t len,
+    const std::size_t num_buckets,
+    const std::size_t num_total_asterisks = 100
+    ) {
+  params_t params;
+  params.num_buckets = num_buckets;
+  params.num_total_asterisks = num_total_asterisks;
+  params.preprocess = preprocess_t::identity;
+  print_histogram(params, vec, len);
 }
 
 template <class T>
 void print_histogram(
-  const std::vector<T> vec,
-  const std::size_t num_buckets,
-  const std::size_t num_total_asterisks = 100
-  ) {
+    const std::vector<T> vec,
+    const std::size_t num_buckets,
+    const std::size_t num_total_asterisks = 100
+    ) {
   mtk::histo::print_histogram(
-    vec.data(),
-    vec.size(),
-    num_buckets,
-    num_total_asterisks
-    );
+      vec.data(),
+      vec.size(),
+      num_buckets,
+      num_total_asterisks
+      );
+}
+
+template <class T>
+void print_histogram(
+    const params_t& params,
+    const T* const vec,
+    const std::size_t len
+    ) {
+  if (params.preprocess == preprocess_t::identity) {
+    mtk::histo::detail::print_histogram_core(
+        vec,
+        len,
+        params.num_buckets,
+        params.num_total_asterisks,
+        [=](const T a) -> T {return a;},
+        params.range_min,
+        params.range_max
+        );
+  } else if (params.preprocess == preprocess_t::abs) {
+    mtk::histo::detail::print_histogram_core(
+        vec,
+        len,
+        params.num_buckets,
+        params.num_total_asterisks,
+        [=](const T a) -> T {return mtk::histo::detail::abs(a);},
+        params.range_min,
+        params.range_max
+        );
+  }
+}
+
+template <class T>
+void print_histogram(
+    const params_t& params,
+    const std::vector<T>& vec
+    ) {
+  print_histogram(params, vec.data(), vec.size());
 }
 
 namespace utils {
 template <class T>
 std::pair<double, double> calc_mean_and_var(
-		const T* const ptr,
-		const std::size_t len
-		) {
-	double sum = 0;
+    const T* const ptr,
+    const std::size_t len
+    ) {
+  double sum = 0;
 #pragma omp parallel for reduction(+: sum)
-	for (std::size_t i = 0; i < len; i++) {
-		sum += ptr[i];
-	}
-	const auto mean = sum / len;
+  for (std::size_t i = 0; i < len; i++) {
+    sum += ptr[i];
+  }
+  const auto mean = sum / len;
 
-	sum = 0;
+  sum = 0;
 #pragma omp parallel for reduction(+: sum)
-	for (std::size_t i = 0; i < len; i++) {
-		const auto v = mean - ptr[i];
-		sum += v * v;
-	}
-	const auto var = sum / (len - 1);
+  for (std::size_t i = 0; i < len; i++) {
+    const auto v = mean - ptr[i];
+    sum += v * v;
+  }
+  const auto var = sum / (len - 1);
 
-	return std::make_pair(mean, var);
+  return std::make_pair(mean, var);
 }
 template <class T>
 std::pair<double, double> calc_mean_and_var(
-		const std::vector<T>& vec
-		) {
-	return calc_mean_and_var(vec.data(), vec.size());
+    const std::vector<T>& vec
+    ) {
+  return calc_mean_and_var(vec.data(), vec.size());
 }
 } // namespace utils
 } // namespace histo
