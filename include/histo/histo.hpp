@@ -213,7 +213,7 @@ enum class bucket_type_t {
 struct params_t {
   double range_min = std::nan("");
   double range_max = std::nan("");
-  std::size_t num_buckets = 10;
+  std::size_t num_buckets = 0;
   std::size_t num_total_asterisks = 100;
   preprocess_type_t preprocess_type = preprocess_type_t::identity;
   bucket_type_t bucket_type = bucket_type_t::standard_range;
@@ -282,11 +282,12 @@ void print_histogram(
     const std::size_t len
     ) {
   if (params.bucket_type == bucket_type_t::standard_range) {
+    std::size_t num_buckets = params.num_buckets == 0 ? 10 : params.num_buckets;
     if (params.preprocess_type == preprocess_type_t::identity) {
       mtk::histo::detail::print_histogram_core(
           vec,
           len,
-          params.num_buckets,
+          num_buckets,
           params.num_total_asterisks,
           [=](const T a) -> T {return a;},
           params.range_min,
@@ -296,7 +297,7 @@ void print_histogram(
       mtk::histo::detail::print_histogram_core(
           vec,
           len,
-          params.num_buckets,
+          num_buckets,
           params.num_total_asterisks,
           [=](const T a) -> T {return mtk::histo::detail::abs(a);},
           params.range_min,
@@ -305,6 +306,9 @@ void print_histogram(
     }
   } else if (params.bucket_type == bucket_type_t::discrete_int) {
     if constexpr (std::is_integral_v<T>) {
+      if (params.num_buckets != 0) {
+        std::printf("[histo warn]: Specified num_buckets is ignored in the discrete_int bucket type\n");
+      }
       if (params.preprocess_type == preprocess_type_t::identity) {
         mtk::histo::detail::print_histogram_descrete_int_core(
             vec,
