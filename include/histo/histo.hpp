@@ -138,13 +138,6 @@ auto print_histogram_descrete_int_core(
   }
   const std::size_t num_buckets = max - min + 1;
 
-  // bucket_width = (max - min) / num_buckets
-  // [min + 0 * (max - min) / num_buckets, min + 1 * (max - min) / num_buckets]
-  // (min + 1 * (max - min) / num_buckets, min + 2 * (max - min) / num_buckets]
-  // (min + 3 * (max - min) / num_buckets, min + 4 * (max - min) / num_buckets]
-  // ...
-  // (                                   , max]
-
   std::size_t num_out = 0;
   std::vector<std::size_t> counter(num_buckets, 0);
 #pragma omp parallel reduction(+: num_out)
