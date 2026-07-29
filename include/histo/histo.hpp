@@ -108,7 +108,13 @@ auto print_histogram_core(
     }
     std::printf("\n");
   }
-  std::printf("Out-of-range: %lu\n", num_out);
+  std::printf("Out-of-range: %lu (", num_out);
+  if (num_out * 500 > len) {
+    std::printf("%5.1f %%", 100. * num_out / len);
+  } else {
+    std::printf("%.1e %%", 100. * num_out / len);
+  }
+  std::printf(")\n");
 }
 
 template <class T, class Func>
